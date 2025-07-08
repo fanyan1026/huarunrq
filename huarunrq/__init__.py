@@ -1,10 +1,12 @@
 """HuaRunRQ integration."""
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import logging  # 使用Python内置的logging模块
 
 DOMAIN = "huarunrq"
 PLATFORMS = ["sensor"]  # 统一管理需要加载的平台
 
+_LOGGER = logging.getLogger(__name__)  # 使用Python内置的logging模块创建日志记录器
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the HuaRunRQ component from YAML config (if any)."""
@@ -15,6 +17,12 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Set up HuaRunRQ from a config entry."""
+    # 检查配置项是否已经被设置
+    if config_entry.entry_id in hass.data[DOMAIN]:
+        # 如果已经设置，记录警告并跳过设置
+        _LOGGER.warning("Config entry %s already setup, skipping", config_entry.entry_id)
+        return True  # 返回True表示设置成功，避免触发错误
+        
     # 将配置条目ID存入集成数据，便于后续关联
     hass.data[DOMAIN][config_entry.entry_id] = {}
 
