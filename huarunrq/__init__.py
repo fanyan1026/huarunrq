@@ -1,60 +1,101 @@
-"""HuaRunRQ integration."""
+"""HuaRunRQ 集成核心逻辑"""
+import asyncio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-import logging  # 使用Python内置的logging模块
+import logging
 
 DOMAIN = "huarunrq"
-PLATFORMS = ["sensor"]  # 统一管理需要加载的平台
+PLATFORMS = ["sensor"]
 
-_LOGGER = logging.getLogger(__name__)  # 使用Python内置的logging模块创建日志记录器
+_LOGGER = logging.getLogger(__name__)
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up the HuaRunRQ component from YAML config (if any)."""
-    # 初始化集成数据存储（用于共享API客户端、状态等）
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """设置集成的基础结构"""
+    # 确保数据结构存在，避免 KeyError
     hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["loaded_entries"] = set()
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Set up HuaRunRQ from a config entry."""
-    # 检查配置项是否已经被设置
-    if config_entry.entry_id in hass.data[DOMAIN]:
-        # 如果已经设置，记录警告并跳过设置
-        _LOGGER.warning("Config entry %s already setup, skipping", config_entry.entry_id)
-        return True  # 返回True表示设置成功，避免触发错误
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """设置单个配置项"""
+    entry_id = config_entry.entry_id
+    
+    # 确保数据结构存在（双重检查，防止 async_setup 未被调用）
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+        hass.data[DOMAIN]["loaded_entries"] = set()
+    
+    # 检查配置项是否已加载
+    if entry_id in hass.data[DOMAIN]["loaded_entries"]:
+        _LOGGER.warning("配置项 %s 已加载，跳过重复设置", entry_id)
+        return True
+    
+    _LOGGER.info("加载配置项 %s (title=%s)", entry_id, config_entry.title)
+    
+    try:
+        # 使用新版API（单数形式）
+        if hasattr(hass.config_entries, "async_forward_entry_setup"):
+            _LOGGER.debug("使用新版API: async_forward_entry_setup")
+            for platform in PLATFORMS:
+                await hass.config_entries.async_forward_entry_setup(config_entry, platform)
+        else:
+            # 旧版API（复数形式）
+            _LOGGER.debug("使用旧版API: async_forward_entry_setups")
+            await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
         
-    # 将配置条目ID存入集成数据，便于后续关联
-    hass.data[DOMAIN][config_entry.entry_id] = {}
-
-    # 加载所有关联平台（如sensor）
-    success = await hass.config_entries.async_forward_entry_setups(
-        config_entry, PLATFORMS
-    )
-
-    if not success:
-        # 若平台加载失败，清理已存储的数据
-        hass.data[DOMAIN].pop(config_entry.entry_id, None)
+        # 标记配置项为已加载
+        hass.data[DOMAIN]["loaded_entries"].add(entry_id)
+        
+        _LOGGER.info("配置项 %s 加载成功", entry_id)
+        config_entry.async_on_unload(
+            config_entry.add_update_listener(async_update_options)
+        )
+        return True
+            
+    except Exception as e:
+        _LOGGER.exception("配置项加载异常: %s", str(e))
         return False
 
-    # 监听配置条目更新事件（如选项修改后重新加载）
-    config_entry.async_on_unload(
-        config_entry.add_update_listener(async_update_options)
-    )
-    return True
 
-
-async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Unload a config entry."""
-    # 卸载所有平台
-    unloaded = await hass.config_entries.async_forward_entry_unload(
-        config_entry, PLATFORMS
-    )
-    if unloaded:
-        # 卸载成功后清理集成数据
-        hass.data[DOMAIN].pop(config_entry.entry_id, None)
-    return unloaded
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """卸载配置项"""
+    entry_id = config_entry.entry_id
+    _LOGGER.info("卸载配置项 %s", entry_id)
+    
+    try:
+        # 确保数据结构存在
+        if DOMAIN not in hass.data or "loaded_entries" not in hass.data[DOMAIN]:
+            _LOGGER.warning("尝试卸载未加载的配置项 %s", entry_id)
+            return True
+        
+        # 卸载平台
+        unload_tasks = [
+            hass.config_entries.async_forward_entry_unload(config_entry, platform)
+            for platform in PLATFORMS
+        ]
+        
+        # 等待所有卸载任务完成
+        unload_results = await asyncio.gather(*unload_tasks)
+        unloaded = all(unload_results)
+        
+        # 移除已加载标记
+        if entry_id in hass.data[DOMAIN]["loaded_entries"]:
+            hass.data[DOMAIN]["loaded_entries"].remove(entry_id)
+            
+        if unloaded and not hass.data[DOMAIN]["loaded_entries"]:
+            hass.data.pop(DOMAIN, None)
+            
+        _LOGGER.info("配置项 %s 卸载 %s", entry_id, "成功" if unloaded else "失败")
+        return unloaded
+        
+    except Exception as e:
+        _LOGGER.exception("配置项卸载异常: %s", str(e))
+        return False
 
 
 async def async_update_options(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Handle options update (如用户修改选项后重新加载集成)."""
+    """配置更新时重新加载"""
+    _LOGGER.info("配置项 %s 已更新，重新加载", config_entry.entry_id)
     await hass.config_entries.async_reload(config_entry.entry_id)
