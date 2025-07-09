@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add HuaRun Gas",
+        "description": "Please enter your HuaRun Gas account number",
+        "data": {
+          "cno": "HuaRun Gas Account Number"
+        }
+      }
+    },
+    "error": {
+      "missing_cno": "Please enter your gas account number",
+      "invalid_number": "Please enter a valid number",
+      "invalid_interval": "Update interval must be between 1-72 hours"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HuaRun Gas Settings",
+        "description": "Adjust data update frequency",
+        "data": {
+          "cno": "HuaRun Gas Account Number",
+          "update_interval_hours": "Update Interval (hours)"
+        }
+      }
+    },
+    "error": {
+      "missing_cno": "Please enter your gas account number",
+      "invalid_number": "Please enter a valid number",
+      "invalid_interval": "Update interval must be between 1-72 hours"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "huarunrq": {
+        "name": "HuaRun Gas Balance",
+        "state": "Gas Balance",
+        "attributes": {
+          "燃气编号": "Gas Account Number",
+          "更新间隔（小时）": "Update Interval (hours)",
+          "最后更新时间": "Last Updated"
+        }
+      }
+    }
+  }
+}
