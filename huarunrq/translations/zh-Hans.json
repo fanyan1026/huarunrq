@@ -1,1 +1,48 @@
-
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "添加华润燃气",
+        "description": "请输入您的华润燃气编号",
+        "data": {
+          "cno": "华润燃气编号"
+        }
+      }
+    },
+    "error": {
+      "missing_cno": "请输入华润燃气编号",
+      "invalid_number": "请输入有效的数字",
+      "invalid_interval": "更新间隔必须为1-72小时"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "华润燃气设置",
+        "description": "调整传感器更新频率",
+        "data": {
+          "cno": "华润燃气编号",
+          "update_interval_hours": "更新间隔（小时）"
+        }
+      }
+    },
+    "error": {
+      "missing_cno": "请输入华润燃气编号",
+      "invalid_number": "请输入有效的数字",
+      "invalid_interval": "更新间隔必须为1-72小时"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "huarunrq": {
+        "name": "华润燃气余额",
+        "state": "燃气余额",
+        "attributes": {
+          "燃气编号": "燃气编号",
+          "更新间隔（小时）": "更新间隔（小时）",
+          "最后更新时间": "最后更新时间"
+        }
+      }
+    }
+  }
+}
